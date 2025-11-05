@@ -6,6 +6,16 @@ use PHPUnit\Framework\TestCase;
 
 final class SaeidScrapperPluginTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        global $_saeid_scrapper_test_terms, $_saeid_scrapper_test_term_parents;
+
+        $_saeid_scrapper_test_terms = [];
+        $_saeid_scrapper_test_term_parents = [];
+    }
+
     /**
      * Helper to call protected static methods on the plugin class.
      *
@@ -69,6 +79,26 @@ final class SaeidScrapperPluginTest extends TestCase
             ['name' => 'صفحه نمایش HMI', 'slug' => 'hmi'],
             ['name' => 'تجهیزات', 'slug' => 'تجهیزات'],
         ], $categories);
+    }
+
+    public function testGetProductCategoryLabelsBuildsBreadcrumbs(): void
+    {
+        global $_saeid_scrapper_test_terms, $_saeid_scrapper_test_term_parents;
+
+        $_saeid_scrapper_test_terms['99:product_cat'] = [
+            (object) ['term_id' => 12, 'name' => 'صفحه نمایش HMI'],
+            (object) ['term_id' => 25, 'name' => 'قطعات'],
+        ];
+
+        $_saeid_scrapper_test_term_parents['12:product_cat'] = 'محصولات زیمنس › صفحه نمایش HMI';
+        $_saeid_scrapper_test_term_parents['25:product_cat'] = 'قطعات';
+
+        $labels = $this->callProtected('get_product_category_labels', [99]);
+
+        $this->assertSame([
+            'محصولات زیمنس › صفحه نمایش HMI',
+            'قطعات',
+        ], $labels);
     }
 
     public function testParseProductAttributesPrefersTableMarkup(): void

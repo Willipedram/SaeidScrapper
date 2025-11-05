@@ -31,6 +31,7 @@ The project root additionally contains automated tests and Composer configuratio
 * **Bulk URL collection** – import hundreds of source addresses in one form submission while the plugin prevents duplicates via URL hashes.
 * **Category synchronisation** – run the “همگام‌سازی دسته‌بندی” tool to detect products that already exist and create any missing product categories from the destination site before scraping begins.
 * **Product scraper** – queue stored URLs for scraping, stream live logs, show remaining URLs, and render a progress bar with ETA calculations. Created WooCommerce products include titles, descriptions, slugs, and structured specifications but intentionally skip featured images.
+* **Category visibility** – list the WooCommerce categories associated with each scraped or previously existing product so operators instantly see where items land.
 * **Source-aware parsing** – extract data from WooCommerce layouts, Elementor blocks, additional information tables, and JSON-LD schema to match the content structure used on tehran-control.com.
 
 ## Recommended workflow

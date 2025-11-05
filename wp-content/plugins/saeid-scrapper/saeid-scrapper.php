@@ -524,11 +524,12 @@ class Saeid_Scrapper_Plugin {
                             <tr>
                                 <th><?php esc_html_e( 'آدرس منبع', 'saeid-scrapper' ); ?></th>
                                 <th><?php esc_html_e( 'شناسه محصول', 'saeid-scrapper' ); ?></th>
+                                <th><?php esc_html_e( 'دسته‌بندی‌ها', 'saeid-scrapper' ); ?></th>
                             </tr>
                         </thead>
                         <tbody id="saeid-scrapper-completed-list">
                             <?php if ( empty( $overview['completed'] ) ) : ?>
-                                <tr><td colspan="2"><?php esc_html_e( 'هنوز محصولی ساخته نشده است.', 'saeid-scrapper' ); ?></td></tr>
+                                <tr><td colspan="3"><?php esc_html_e( 'هنوز محصولی ساخته نشده است.', 'saeid-scrapper' ); ?></td></tr>
                             <?php else : ?>
                                 <?php foreach ( $overview['completed'] as $item ) : ?>
                                     <tr>
@@ -536,9 +537,32 @@ class Saeid_Scrapper_Plugin {
                                         <td>
                                             <?php if ( ! empty( $item['product_id'] ) && ! empty( $item['edit_link'] ) ) : ?>
                                                 <a href="<?php echo esc_url( $item['edit_link'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $item['product_id'] ); ?></a>
+                                            <?php elseif ( ! empty( $item['product_id'] ) ) : ?>
+                                                <?php echo esc_html( $item['product_id'] ); ?>
                                             <?php else : ?>
                                                 &mdash;
                                             <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php
+                                            $category_label = '';
+
+                                            if ( ! empty( $item['categories_label'] ) ) {
+                                                $category_label = sanitize_text_field( $item['categories_label'] );
+                                            } elseif ( ! empty( $item['categories'] ) && is_array( $item['categories'] ) ) {
+                                                $sanitized = array();
+                                                foreach ( $item['categories'] as $category_item ) {
+                                                    $sanitized[] = sanitize_text_field( $category_item );
+                                                }
+                                                $category_label = implode( '، ', array_filter( $sanitized ) );
+                                            }
+
+                                            if ( '' === $category_label ) {
+                                                echo '&mdash;';
+                                            } else {
+                                                echo esc_html( $category_label );
+                                            }
+                                            ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -781,12 +805,15 @@ class Saeid_Scrapper_Plugin {
         }
 
         foreach ( (array) $completed_rows as $row ) {
-            $product_id = isset( $row['product_id'] ) ? (int) $row['product_id'] : 0;
-            $completed[] = array(
-                'id'         => isset( $row['id'] ) ? (int) $row['id'] : 0,
-                'url'        => isset( $row['url'] ) ? esc_url_raw( $row['url'] ) : '',
-                'product_id' => $product_id,
-                'edit_link'  => $product_id ? get_edit_post_link( $product_id ) : '',
+            $product_id      = isset( $row['product_id'] ) ? (int) $row['product_id'] : 0;
+            $category_labels = self::get_product_category_labels( $product_id );
+            $completed[]     = array(
+                'id'                => isset( $row['id'] ) ? (int) $row['id'] : 0,
+                'url'               => isset( $row['url'] ) ? esc_url_raw( $row['url'] ) : '',
+                'product_id'        => $product_id,
+                'edit_link'         => $product_id ? get_edit_post_link( $product_id ) : '',
+                'categories'        => $category_labels,
+                'categories_label'  => ! empty( $category_labels ) ? implode( '، ', $category_labels ) : '',
             );
         }
 
@@ -901,6 +928,72 @@ class Saeid_Scrapper_Plugin {
             'missing' => $missing,
             'failed'  => $failed,
         );
+    }
+
+    /**
+     * Returns formatted category breadcrumbs for a given product.
+     *
+     * @param int $product_id Product ID.
+     * @return array
+     */
+    protected static function get_product_category_labels( $product_id ) {
+        $product_id = absint( $product_id );
+
+        if ( $product_id <= 0 || ! function_exists( 'get_the_terms' ) ) {
+            return array();
+        }
+
+        $terms = get_the_terms( $product_id, 'product_cat' );
+
+        if ( empty( $terms ) || is_wp_error( $terms ) ) {
+            return array();
+        }
+
+        $labels = array();
+
+        foreach ( $terms as $term ) {
+            if ( ! is_object( $term ) ) {
+                continue;
+            }
+
+            $label = '';
+
+            if ( function_exists( 'get_term_parents_list' ) && isset( $term->term_id ) ) {
+                $raw = get_term_parents_list(
+                    (int) $term->term_id,
+                    'product_cat',
+                    array(
+                        'separator' => ' › ',
+                        'inclusive' => true,
+                        'link'      => false,
+                    )
+                );
+
+                if ( is_wp_error( $raw ) ) {
+                    $raw = '';
+                }
+
+                if ( is_string( $raw ) && '' !== $raw ) {
+                    $label = trim( preg_replace( '/\s*›\s*/u', ' › ', wp_strip_all_tags( $raw ) ) );
+                }
+            }
+
+            if ( '' === $label && isset( $term->name ) ) {
+                $label = sanitize_text_field( $term->name );
+            }
+
+            if ( '' !== $label ) {
+                $label = sanitize_text_field( $label );
+            }
+
+            if ( '' === $label ) {
+                continue;
+            }
+
+            $labels[ $label ] = $label;
+        }
+
+        return array_values( $labels );
     }
 
     /**
@@ -1119,10 +1212,20 @@ class Saeid_Scrapper_Plugin {
 
             $overview = self::get_scraper_overview();
 
+            $message = sprintf( __( 'محصول مرتبط با آدرس %1$s قبلاً با شناسه %2$d وجود دارد.', 'saeid-scrapper' ), esc_html( $row['url'] ), absint( $existing_product_id ) );
+
+            $category_labels = self::get_product_category_labels( $existing_product_id );
+            if ( ! empty( $category_labels ) ) {
+                $category_display = implode( '، ', array_map( 'sanitize_text_field', $category_labels ) );
+                if ( '' !== $category_display ) {
+                    $message .= ' ' . sprintf( __( '(دسته‌بندی‌ها: %s)', 'saeid-scrapper' ), esc_html( $category_display ) );
+                }
+            }
+
             wp_send_json_success(
                 array(
                     'status'    => 'skipped',
-                    'message'   => sprintf( __( 'محصول مرتبط با آدرس %1$s قبلاً با شناسه %2$d وجود دارد.', 'saeid-scrapper' ), esc_html( $row['url'] ), absint( $existing_product_id ) ),
+                    'message'   => $message,
                     'counts'    => $overview['counts'],
                     'pending'   => $overview['pending'],
                     'completed' => $overview['completed'],
@@ -1221,6 +1324,14 @@ class Saeid_Scrapper_Plugin {
 
         if ( $edit_link ) {
             $message .= ' <a href="' . esc_url( $edit_link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'ویرایش', 'saeid-scrapper' ) . '</a>';
+        }
+
+        $category_labels = self::get_product_category_labels( $product_id );
+        if ( ! empty( $category_labels ) ) {
+            $category_display = implode( '، ', array_map( 'sanitize_text_field', $category_labels ) );
+            if ( '' !== $category_display ) {
+                $message .= ' ' . sprintf( __( '(دسته‌بندی‌ها: %s)', 'saeid-scrapper' ), esc_html( $category_display ) );
+            }
         }
 
         wp_send_json_success(

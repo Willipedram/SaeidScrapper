@@ -61,6 +61,28 @@ if (!function_exists('esc_html_x')) {
     }
 }
 
+if (!isset($GLOBALS['_saeid_scrapper_test_terms'])) {
+    $GLOBALS['_saeid_scrapper_test_terms'] = [];
+}
+
+if (!isset($GLOBALS['_saeid_scrapper_test_term_parents'])) {
+    $GLOBALS['_saeid_scrapper_test_term_parents'] = [];
+}
+
+if (!function_exists('get_the_terms')) {
+    function get_the_terms($post_id, $taxonomy) {
+        $key = $post_id . ':' . $taxonomy;
+        return $GLOBALS['_saeid_scrapper_test_terms'][$key] ?? [];
+    }
+}
+
+if (!function_exists('get_term_parents_list')) {
+    function get_term_parents_list($term_id, $taxonomy, $args = []) {
+        $key = $term_id . ':' . $taxonomy;
+        return $GLOBALS['_saeid_scrapper_test_term_parents'][$key] ?? '';
+    }
+}
+
 if (!function_exists('esc_url_raw')) {
     function esc_url_raw($url) {
         return $url;

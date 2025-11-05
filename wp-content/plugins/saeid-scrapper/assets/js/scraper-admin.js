@@ -182,7 +182,7 @@
         tbody.empty();
 
         if (!items || items.length === 0) {
-            tbody.append('<tr><td colspan="2">' + (strings.noProducts || 'No products yet.') + '</td></tr>');
+            tbody.append('<tr><td colspan="3">' + (strings.noProducts || 'No products yet.') + '</td></tr>');
             return;
         }
 
@@ -207,7 +207,19 @@
                 }
             }
 
-            tbody.append('<tr><td>' + url + '</td><td>' + productColumn + '</td></tr>');
+            let categoriesLabel = '';
+            if (item.categories_label) {
+                categoriesLabel = item.categories_label;
+            } else if (Array.isArray(item.categories) && item.categories.length) {
+                categoriesLabel = item.categories.filter(Boolean).join('، ');
+            }
+
+            let categoriesColumn = '&mdash;';
+            if (categoriesLabel) {
+                categoriesColumn = $('<span/>').text(categoriesLabel).html();
+            }
+
+            tbody.append('<tr><td>' + url + '</td><td>' + productColumn + '</td><td>' + categoriesColumn + '</td></tr>');
         });
     }
 
