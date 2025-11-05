@@ -1,0 +1,12 @@
+{
+    "name": "saeid/scrapper",
+    "description": "Saeid Scrapper WordPress plugin project",
+    "type": "project",
+    "require": {},
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}
